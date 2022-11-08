@@ -26,12 +26,13 @@ pub enum TrendDirection {
 
 #[tokio::main]
 pub async fn main() {
-    if let Ok(res) = reqwest::get(format!("{BASE_URL}/api/v1/entries.json?count=1")).await {
+    if let Ok(res) = reqwest::get(format!("{BASE_URL}/api/v1/entries.json?count=2")).await {
         if let Ok(encoded_response) = res.json::<[EntriesResponse; 2]>().await {
             let converted_value = encoded_response[0].sgv / 18_f32;
+            let delta = (encoded_response[0].sgv - encoded_response[1].sgv) / 18_f32;
             let trend = parse_trend(&encoded_response[0].trend);
 
-            println!("{converted_value:.1} mmol/L {trend}");
+            println!("{converted_value:.1} {delta:+.1} {trend}");
             return;
         }
     }
