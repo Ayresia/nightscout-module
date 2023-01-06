@@ -1,7 +1,6 @@
+use clap::{Parser, arg};
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
-
-const BASE_URL: &str = "https://t1.ayresia.dev";
 
 #[derive(Deserialize)]
 pub struct EntriesResponse {
@@ -38,9 +37,17 @@ pub fn parse_trend(trend: &TrendDirection) -> &str {
     }
 }
 
+#[derive(Parser, Debug)]
+pub struct Args {
+    #[arg(short, long, help = "Nightscout url to fetch glucose data from")]
+    url: String,
+}
+
 #[tokio::main]
 pub async fn main() {
-    let result = match reqwest::get(format!("{BASE_URL}/api/v1/entries.json?count=2")).await {
+    let args = Args::parse();
+
+    let result = match reqwest::get(format!("{0}/api/v1/entries.json?count=2", args.url)).await {
         Ok(res) => res,
         Err(_) => {
             eprintln!("Unable to fetch glucose");
