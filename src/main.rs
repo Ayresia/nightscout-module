@@ -32,6 +32,7 @@ pub async fn main() {
         Some(entries) => {
             if entries.len() < 2 {
                 eprintln!("No available glucose data");
+                return;
             }
 
             let first_entry = entries.get(0).unwrap();
