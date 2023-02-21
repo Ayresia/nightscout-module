@@ -31,6 +31,6 @@ impl<'a> Nightscout<'a> {
             }
         }
 
-        return None;
+        None
     }
 }
