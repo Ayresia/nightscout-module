@@ -1,71 +1,37 @@
-use clap::{Parser, arg};
-use serde::Deserialize;
-use serde_repr::Deserialize_repr;
+use crate::{nightscout::Nightscout, helpers::parse_trend};
+use clap::{arg, Parser};
 
-#[derive(Deserialize)]
-pub struct EntriesResponse {
-    sgv: f32,
-    trend: TrendDirection,
-}
-
-#[derive(Deserialize_repr, Debug)]
-#[repr(u8)]
-pub enum TrendDirection {
-    None = 0,
-    DoubleUp = 1,
-    SingleUp = 2,
-    FortyFiveUp = 3,
-    Flat = 4,
-    FortyFiveDown = 5,
-    SingleDown = 6,
-    DoubleDown = 7,
-    NotComputable = 8,
-    OutOfRange = 9,
-}
-
-pub fn parse_trend(trend: &TrendDirection) -> &str {
-    match trend {
-        TrendDirection::DoubleUp => "↑↑",
-        TrendDirection::SingleUp => "↑",
-        TrendDirection::FortyFiveUp => "↗︎",
-        TrendDirection::Flat => "→",
-        TrendDirection::FortyFiveDown => "↘",
-        TrendDirection::SingleDown => "↓",
-        TrendDirection::DoubleDown => "↓↓",
-        TrendDirection::NotComputable => "-",
-        _ => "",
-    }
-}
+mod models;
+mod nightscout;
+mod helpers;
 
 #[derive(Parser, Debug)]
 pub struct Args {
     #[arg(short, long, help = "Nightscout url to fetch glucose data from")]
-    url: String,
+    url: String
 }
 
 #[tokio::main]
 pub async fn main() {
     let args = Args::parse();
+    let nightscout = Nightscout::new(&args.url);
+    let entries = nightscout.get_entries().await;
 
-    let result = match reqwest::get(format!("{0}/api/v1/entries.json?count=2", args.url)).await {
-        Ok(res) => res,
-        Err(_) => {
-            eprintln!("Unable to fetch glucose");
-            return;
-        }
+    match entries {
+        Some(entries) => {
+            if entries.len() < 2 {
+                eprintln!("No available glucose data");
+            }
+
+            let first_entry = entries.get(0).unwrap();
+            let second_entry = entries.get(1).unwrap();
+
+            let converted_value = first_entry.sgv / 18_f32;
+            let delta = (first_entry.sgv - second_entry.sgv) / 18_f32;
+            let trend = parse_trend(&first_entry.trend);
+
+            println!("{converted_value:.1} {delta:+.1} {trend}");
+        },
+        _ => eprintln!("Unable to fetch glucose data")
     };
-
-    let encoded_response = match result.json::<[EntriesResponse; 2]>().await {
-        Ok(response) => response,
-        Err(_) => {
-            eprintln!("Unable to transform response to json");
-            return;
-        }
-    };
-
-    let converted_value = encoded_response[0].sgv / 18_f32;
-    let delta = (encoded_response[0].sgv - encoded_response[1].sgv) / 18_f32;
-    let trend = parse_trend(&encoded_response[0].trend);
-
-    println!("{converted_value:.1} {delta:+.1} {trend}");
 }
