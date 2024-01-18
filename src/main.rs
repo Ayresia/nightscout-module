@@ -1,11 +1,10 @@
+use crate::nightscout::Nightscout;
 use clap::builder::TypedValueParser;
-use crate::{nightscout::Nightscout, helpers::parse_trend};
 use clap::{arg, Parser};
 use models::Units;
 
 mod models;
 mod nightscout;
-mod helpers;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -19,40 +18,40 @@ pub struct Args {
         value_parser = clap::builder::PossibleValuesParser::new(["mmol", "mg/l"])
             .map(|s| s.parse::<models::Units>().unwrap()),
     )]
-    units: Units
+    units: Units,
 }
+
+pub const MGDL_PER_MMOL: f32 = 18.0;
 
 #[tokio::main]
 pub async fn main() {
     let args = Args::parse();
     let nightscout = Nightscout::new(&args.url);
-    let entries = nightscout.get_entries().await;
 
-    match entries {
-        Some(entries) => {
-            if entries.len() < 2 {
-                eprintln!("No available glucose data");
-                return;
-            }
-
-            let first_entry = entries.get(0).unwrap();
-            let second_entry = entries.get(1).unwrap();
-
-            let trend = parse_trend(&first_entry.trend);
-            let mut delta = first_entry.sgv - second_entry.sgv;
-
-            match args.units {
-                Units::Mmol => {
-                    let converted_value = first_entry.sgv / 18_f32;
-                    delta /= 18_f32;
-
-                    println!("{converted_value:.1} {delta:+.1} {trend}");
-                },
-                Units::Mgl => {
-                    println!("{0:.1} {delta:+.1} {trend}", first_entry.sgv);
-                }
-            }
-        },
-        _ => eprintln!("Unable to fetch glucose data")
+    let entries = match nightscout.get_entries().await {
+        Some(result) => result,
+        None => {
+            eprintln!("Unable to fetch glucose data");
+            return;
+        }
     };
+
+    if entries.len() < 2 {
+        eprintln!("No glucose data available");
+        return;
+    }
+
+    let first_entry = entries.get(0).unwrap();
+    let second_entry = entries.get(1).unwrap();
+
+    let mut delta = first_entry.sgv - second_entry.sgv;
+    let mut value = first_entry.sgv;
+
+    if args.units == Units::Mmol {
+        value /= MGDL_PER_MMOL;
+        delta /= MGDL_PER_MMOL;
+    }
+
+    let trend = &first_entry.trend.to_string();
+    println!("{value:.1} {delta:+.1} {trend}");
 }

@@ -1,9 +1,9 @@
-use reqwest::StatusCode;
 use crate::models::EntriesResponse;
+use reqwest::StatusCode;
 
 pub struct Nightscout<'a> {
     base_url: &'a str,
-    pub client: reqwest::Client,
+    client: reqwest::Client,
 }
 
 impl<'a> Nightscout<'a> {
@@ -22,15 +22,15 @@ impl<'a> Nightscout<'a> {
             .await
             .unwrap();
 
-        if response.status() == StatusCode::OK {
-            let encoded_response = response.json::<Vec<EntriesResponse>>().await;
-
-            return match encoded_response {
-                Ok(json_response) => Some(json_response),
-                Err(_) => None
-            }
+        if response.status() != StatusCode::OK {
+            return None;
         }
 
-        None
+        let encoded_response = response.json::<Vec<EntriesResponse>>().await;
+
+        match encoded_response {
+            Ok(json_response) => Some(json_response),
+            Err(_) => None,
+        }
     }
 }

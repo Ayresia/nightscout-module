@@ -1,5 +1,4 @@
-use std::{str::FromStr, fmt::Display};
-
+use core::{fmt::Display, str::FromStr};
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 
@@ -18,6 +17,24 @@ pub enum TrendDirection {
     OutOfRange = 9,
 }
 
+impl ToString for TrendDirection {
+    fn to_string(&self) -> String {
+        let result = match self {
+            TrendDirection::DoubleUp => "↑↑",
+            TrendDirection::SingleUp => "↑",
+            TrendDirection::FortyFiveUp => "↗︎",
+            TrendDirection::Flat => "→",
+            TrendDirection::FortyFiveDown => "↘",
+            TrendDirection::SingleDown => "↓",
+            TrendDirection::DoubleDown => "↓↓",
+            TrendDirection::NotComputable => "-",
+            _ => "??",
+        };
+
+        result.to_string()
+    }
+}
+
 #[derive(Deserialize)]
 pub struct EntriesResponse {
     pub sgv: f32,
@@ -27,7 +44,7 @@ pub struct EntriesResponse {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Units {
     Mmol,
-    Mgl
+    Mgl,
 }
 
 impl FromStr for Units {
@@ -35,9 +52,9 @@ impl FromStr for Units {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "mmol" => Ok(Units::Mmol),
-            "mg/l" => Ok(Units::Mgl),
-            _ => Err(format!("Unknown units value: {}", s))
+            "mmol" => Ok(Self::Mmol),
+            "mg/l" => Ok(Self::Mgl),
+            _ => Err(format!("Unknown units value: {}", s)),
         }
     }
 }
